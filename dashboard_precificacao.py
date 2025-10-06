@@ -146,7 +146,6 @@ with st.sidebar:
         ["📊 Visão Geral",
          "📈 Análise ANOVA",
          "🔮 Modelos de Regressão",
-         "💰 Calculadora de Preço",
          "📉 Análise de Sensibilidade",
          "📋 Comparação de Modelos"]
     )
@@ -161,7 +160,7 @@ with st.sidebar:
         - **ANOVA**: Análise de variância para identificar fatores significativos
         - **Regressão Linear**: Modelos preditivos de preços
         - **Visualizações Interativas**: Gráficos dinâmicos com Plotly
-        - **Calculadora**: Estimativa de preços em tempo real
+        - **Análise de Sensibilidade**: Impacto de cada variável
     """)
     
     st.markdown("---")
@@ -507,135 +506,7 @@ elif pagina == "🔮 Modelos de Regressão":
         st.text(str(model.summary()))
 
 # ==============================================================================
-# PÁGINA 4: CALCULADORA DE PREÇO
-# ==============================================================================
-
-elif pagina == "💰 Calculadora de Preço":
-    st.header("💰 Calculadora de Preço de Imóvel")
-    
-    st.markdown("""
-    Ajuste as características do imóvel abaixo para obter uma estimativa de preço
-    baseada no **Modelo Log-Log** (mais preciso).
-    """)
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        area_habitavel = st.slider(
-            "Área Habitável (pés²)",
-            min_value=int(df['Gr Liv Area'].min()),
-            max_value=int(df['Gr Liv Area'].max()),
-            value=int(df['Gr Liv Area'].median()),
-            step=100
-        )
-        
-        qualidade_geral = st.select_slider(
-            "Qualidade Geral",
-            options=sorted(df['Overall Qual'].unique()),
-            value=int(df['Overall Qual'].median())
-        )
-        
-        ano_construcao = st.slider(
-            "Ano de Construção",
-            min_value=int(df['Year Built'].min()),
-            max_value=int(df['Year Built'].max()),
-            value=int(df['Year Built'].median())
-        )
-    
-    with col2:
-        area_garagem = st.slider(
-            "Área da Garagem (pés²)",
-            min_value=0,
-            max_value=int(df['Garage Area'].max()),
-            value=int(df['Garage Area'].median()),
-            step=50
-        )
-        
-        ar_condicionado = st.radio(
-            "Ar Condicionado Central",
-            options=["Sim", "Não"],
-            horizontal=True
-        )
-        
-        st.markdown("### ")  # Espaçamento
-    
-    # Calcular preço
-    if st.button("🔍 Calcular Preço Estimado", type="primary", use_container_width=True):
-        
-        # Preparar input
-        log_area = np.log(area_habitavel)
-        log_qual = np.log(qualidade_geral)
-        log_ano = np.log(ano_construcao)
-        log_garagem = np.log(area_garagem if area_garagem > 0 else 1)
-        ar_cond_valor = 1 if ar_condicionado == "Sim" else 0
-        
-        X_novo = pd.DataFrame({
-            'const': [1],
-            'log_Gr_Liv_Area': [log_area],
-            'log_Overall_Qual': [log_qual],
-            'log_Year_Built': [log_ano],
-            'log_Garage_Area': [log_garagem],
-            'Central_Air_Y': [ar_cond_valor]
-        })
-        
-        log_preco_pred = model_2.predict(X_novo)[0]
-        preco_pred = np.exp(log_preco_pred)
-        
-        # Intervalo de confiança (simplificado)
-        margem_erro = rmse_2 * 1.96  # 95% de confiança
-        preco_min = preco_pred - margem_erro
-        preco_max = preco_pred + margem_erro
-        
-        st.markdown("---")
-        st.success("### 🎯 Resultado da Estimativa")
-        
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            st.metric("Preço Mínimo (95%)", f"${preco_min:,.0f}")
-        with col2:
-            st.metric("**Preço Estimado**", f"**${preco_pred:,.0f}**")
-        with col3:
-            st.metric("Preço Máximo (95%)", f"${preco_max:,.0f}")
-        
-        # Comparação com média
-        preco_medio = df['SalePrice'].median()
-        diferenca = ((preco_pred - preco_medio) / preco_medio) * 100
-        
-        st.markdown("---")
-        st.info(f"""
-        **Análise:**
-        - O preço estimado é **{abs(diferenca):.1f}% {'acima' if diferenca > 0 else 'abaixo'}** da mediana do mercado (${preco_medio:,.0f})
-        - Intervalo de confiança de 95%: ${preco_min:,.0f} - ${preco_max:,.0f}
-        - Amplitude do intervalo: ${(preco_max - preco_min):,.0f}
-        """)
-        
-        # Gauge chart
-        fig = go.Figure(go.Indicator(
-            mode="gauge+number+delta",
-            value=preco_pred,
-            domain={'x': [0, 1], 'y': [0, 1]},
-            title={'text': "Preço Estimado (USD)", 'font': {'size': 24}},
-            delta={'reference': preco_medio, 'increasing': {'color': "green"}, 'decreasing': {'color': "red"}},
-            gauge={
-                'axis': {'range': [None, preco_max * 1.2]},
-                'bar': {'color': "#0066cc"},
-                'steps': [
-                    {'range': [0, preco_min], 'color': "#e3f2fd"},
-                    {'range': [preco_min, preco_max], 'color': "#bbdefb"}
-                ],
-                'threshold': {
-                    'line': {'color': "red", 'width': 4},
-                    'thickness': 0.75,
-                    'value': preco_medio
-                }
-            }
-        ))
-        fig.update_layout(height=300)
-        st.plotly_chart(fig, use_container_width=True)
-
-# ==============================================================================
-# PÁGINA 5: ANÁLISE DE SENSIBILIDADE
+# PÁGINA 4: ANÁLISE DE SENSIBILIDADE
 # ==============================================================================
 
 elif pagina == "📉 Análise de Sensibilidade":
@@ -761,7 +632,7 @@ elif pagina == "📉 Análise de Sensibilidade":
         st.caption("Aumento monetário do preço")
 
 # ==============================================================================
-# PÁGINA 6: COMPARAÇÃO DE MODELOS
+# PÁGINA 5: COMPARAÇÃO DE MODELOS
 # ==============================================================================
 
 else:  # Comparação de Modelos
